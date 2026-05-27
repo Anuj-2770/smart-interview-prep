@@ -36,7 +36,7 @@ public class GeminiService {
         );
 
         String response = webClient.post()
-                .uri("/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey)
+        		.uri("/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey)
                 .header("Content-Type", "application/json")
                 .bodyValue(requestBody)
                 .retrieve()
