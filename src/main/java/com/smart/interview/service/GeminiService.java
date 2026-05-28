@@ -20,6 +20,36 @@ public class GeminiService {
                 .baseUrl("https://generativelanguage.googleapis.com")
                 .build();
     }
+    
+    public String evaluateAnswer(String question, String answer) {
+        String prompt = "Question: " + question + "\n"
+                + "Student Answer: " + answer + "\n"
+                + "Evaluate this answer and give: \n"
+                + "1. Score out of 10\n"
+                + "2. What was correct\n"
+                + "3. What was missing\n"
+                + "4. Ideal answer in brief";
+
+        Map<String, Object> requestBody = Map.of(
+                "contents", List.of(
+                        Map.of("parts", List.of(
+                                Map.of("text", prompt)
+                        ))
+                )
+        );
+
+        try {
+            return webClient.post()
+                    .uri("/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
 
     public String generateQuestions(String topic) {
         String prompt = "Generate exactly 10 interview questions for topic: "
