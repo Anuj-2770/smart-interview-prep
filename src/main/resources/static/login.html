@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Interview Prep</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 400px; }
+        h2 { text-align: center; margin-bottom: 1.5rem; color: #333; }
+        input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #45a049; }
+        .toggle { text-align: center; margin-top: 1rem; font-size: 14px; color: #666; }
+        .toggle span { color: #4CAF50; cursor: pointer; font-weight: bold; }
+        #message { text-align: center; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🎯 Smart Interview Prep</h2>
+
+    <div id="loginForm">
+        <h3 style="margin-bottom:1rem;color:#555">Login</h3>
+        <input type="email" id="loginEmail" placeholder="Email" />
+        <input type="password" id="loginPassword" placeholder="Password" />
+        <button onclick="login()">Login</button>
+        <div class="toggle">New user? <span onclick="showRegister()">Register here</span></div>
+    </div>
+
+    <div id="registerForm" style="display:none">
+        <h3 style="margin-bottom:1rem;color:#555">Register</h3>
+        <input type="text" id="regName" placeholder="Full Name" />
+        <input type="email" id="regEmail" placeholder="Email" />
+        <input type="password" id="regPassword" placeholder="Password" />
+        <button onclick="register()">Register</button>
+        <div class="toggle">Already have account? <span onclick="showLogin()">Login here</span></div>
+    </div>
+
+    <div id="message"></div>
+</div>
+
+<script>
+    const BASE_URL = 'http://localhost:8282';
+
+    function showRegister() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+    }
+
+    function showLogin() {
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+    }
+
+    async function login() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const res = await fetch(`${BASE_URL}/api/auth/login?email=${email}&password=${password}`, { method: 'POST' });
+        const token = await res.text();
+        if (res.ok) {
+            localStorage.setItem('token', token);
+            window.location.href = 'dashboard.html';
+        } else {
+            document.getElementById('message').innerHTML = '<p style="color:red">Login failed!</p>';
+        }
+    }
+
+    async function register() {
+        const name = document.getElementById('regName').value;
+        const email = document.getElementById('regEmail').value;
+        const password = document.getElementById('regPassword').value;
+        const res = await fetch(`${BASE_URL}/api/auth/register?name=${name}&email=${email}&password=${password}`, { method: 'POST' });
+        if (res.ok) {
+            document.getElementById('message').innerHTML = '<p style="color:green">Registered! Please login.</p>';
+            showLogin();
+        } else {
+            document.getElementById('message').innerHTML = '<p style="color:red">Registration failed!</p>';
+        }
+    }
+</script>
+</body>
+</html>

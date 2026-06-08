@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questions - Smart Interview Prep</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+        .navbar { background: #4CAF50; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h1 { color: white; font-size: 20px; }
+        .navbar button { background: white; color: #4CAF50; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .question-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+        .question-card h3 { color: #333; margin-bottom: 1rem; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; resize: vertical; }
+        .eval-btn { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-top: 8px; }
+        .eval-result { margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 5px; font-size: 13px; color: #444; display: none; }
+        #loading { text-align: center; padding: 2rem; color: #666; }
+        h2 { color: #333; margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <h1>🎯 Smart Interview Prep</h1>
+    <button onclick="window.location.href='dashboard.html'">← Back</button>
+</div>
+<div class="container">
+    <h2 id="topicTitle">Loading...</h2>
+    <div id="loading">⏳ AI questions generate ho rahi hain — thoda wait karo...</div>
+    <div id="questions"></div>
+</div>
+<script>
+    const BASE_URL = 'http://localhost:8282';
+    const token = localStorage.getItem('token');
+    const topic = localStorage.getItem('selectedTopic');
+
+    if (!token) window.location.href = 'login.html';
+
+    document.getElementById('topicTitle').textContent = topic + ' — Practice Questions';
+
+    async function loadQuestions() {
+        try {
+            const res = await fetch(`${BASE_URL}/api/questions/generate?topic=${topic}`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            console.log("API Response:", data);
+            document.getElementById('loading').style.display = 'none';
+            const text = data.candidates[0].content.parts[0].text;
+            const lines = text.split('\n').filter(l => l.trim() !== '');
+            const container = document.getElementById('questions');
+            lines.forEach((line, i) => {
+                if (line.match(/^\d+\./)) {
+                    container.innerHTML += `
+                        <div class="question-card">
+                            <h3>${line}</h3>
+                            <textarea id="ans-${i}" rows="3" placeholder="Apna answer likho..."></textarea>
+                            <button class="eval-btn" onclick="checkAnswer('${line.replace(/'/g, "\\'")}', 'ans-${i}', 'res-${i}')">Evaluate ✓</button>
+                            <div class="eval-result" id="res-${i}"></div>
+                        </div>`;
+                }
+            });
+        } catch(e) {
+            console.log("Error:", e);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('questions').innerHTML = '<p>Questions load nahi hue — wapas try karo!</p>';
+        }
+    }
+
+        async function checkAnswer(question, answerId, resultId) {
+        const answer = document.getElementById(answerId).value;
+        if (!answer) { alert('Pehle answer likho!'); return; }
+        document.getElementById(resultId).style.display = 'block';
+        document.getElementById(resultId).innerHTML = '⏳ Evaluating...';
+        try {
+            const res = await fetch(`${BASE_URL}/api/answer/evaluate?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            const text = data.candidates[0].content.parts[0].text;
+            document.getElementById(resultId).innerHTML = text.replace(/\n/g, '<br>');
+        } catch(e) {
+            document.getElementById(resultId).innerHTML = 'Evaluation failed — try again!';
+        }
+    }
+
+    loadQuestions();
+</script>
+</body>
+</html>
