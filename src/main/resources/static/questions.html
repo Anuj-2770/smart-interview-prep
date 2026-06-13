@@ -13,28 +13,46 @@
         .navbar button { background: white; color: #4CAF50; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
         .question-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1rem; }
-        .question-card h3 { color: #333; margin-bottom: 1rem; }
+        .question-card h3 { color: #333; margin-bottom: 0.75rem; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; resize: vertical; }
-        .eval-btn { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-top: 8px; }
-        .eval-result { margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 5px; font-size: 13px; color: #444; display: none; }
+        .btn-voice { background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-voice.listening { background: #f44336; animation: pulse 1s infinite; }
+        .btn-clear { background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-google { background: #4285F4; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-eval { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-eval:disabled { background: #aaa; cursor: not-allowed; }
+        .eval-result { margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 5px; font-size: 13px; color: #444; display: none; line-height: 1.6; }
         #loading { text-align: center; padding: 2rem; color: #666; }
         h2 { color: #333; margin-bottom: 1.5rem; }
+        .save-btn { background: #FF9800; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 8px; }
+        .counter { background: white; padding: 8px 16px; border-radius: 5px; color: #4CAF50; font-weight: bold; margin-left: 8px; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
+
 <div class="navbar">
     <h1>🎯 Smart Interview Prep</h1>
-    <button onclick="window.location.href='dashboard.html'">← Back</button>
+    <div>
+        <span class="counter" id="counter">✅ 0 Solved</span>
+        <button onclick="saveProgress()" class="save-btn">💾 Save Progress</button>
+        <button onclick="window.location.href='dashboard.html'" style="margin-left:8px">← Back</button>
+    </div>
 </div>
+
 <div class="container">
     <h2 id="topicTitle">Loading...</h2>
     <div id="loading">⏳ AI questions generate ho rahi hain — thoda wait karo...</div>
     <div id="questions"></div>
 </div>
+
 <script>
     const BASE_URL = 'http://localhost:8282';
     const token = localStorage.getItem('token');
     const topic = localStorage.getItem('selectedTopic');
+    let solvedCount = 0;
+    let activeRecognition = null;
 
     if (!token) window.location.href = 'login.html';
 
@@ -46,7 +64,6 @@
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             const data = await res.json();
-            console.log("API Response:", data);
             document.getElementById('loading').style.display = 'none';
             const text = data.candidates[0].content.parts[0].text;
             const lines = text.split('\n').filter(l => l.trim() !== '');
@@ -54,10 +71,17 @@
             lines.forEach((line, i) => {
                 if (line.match(/^\d+\./)) {
                     container.innerHTML += `
-                        <div class="question-card">
+                        <div class="question-card" id="card-${i}">
                             <h3>${line}</h3>
-                            <textarea id="ans-${i}" rows="3" placeholder="Apna answer likho..."></textarea>
-                            <button class="eval-btn" onclick="checkAnswer('${line.replace(/'/g, "\\'")}', 'ans-${i}', 'res-${i}')">Evaluate ✓</button>
+                            <div class="btn-row">
+                                <button class="btn-google" onclick="searchGoogle('${line.replace(/'/g, "\\'")}')">🔍 Google Par Dhundho</button>
+                            </div>
+                            <textarea id="ans-${i}" rows="3" placeholder="Apna answer likho ya mic se bolo..."></textarea>
+                            <div class="btn-row" style="margin-top:8px">
+                                <button class="btn-voice" id="mic-${i}" onclick="startVoice('ans-${i}', 'mic-${i}')">🎤 Bolo</button>
+                                <button class="btn-clear" onclick="document.getElementById('ans-${i}').value=''">🗑️ Clear</button>
+                                <button class="btn-eval" id="eval-${i}" onclick="checkAnswer('${line.replace(/'/g, "\\'")}', 'ans-${i}', 'res-${i}', 'eval-${i}', 'mic-${i}')">✓ Evaluate</button>
+                            </div>
                             <div class="eval-result" id="res-${i}"></div>
                         </div>`;
                 }
@@ -65,15 +89,70 @@
         } catch(e) {
             console.log("Error:", e);
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('questions').innerHTML = '<p>Questions load nahi hue — wapas try karo!</p>';
+            document.getElementById('questions').innerHTML = '<p style="color:red">Questions load nahi hue — wapas try karo!</p>';
         }
     }
 
-        async function checkAnswer(question, answerId, resultId) {
-        const answer = document.getElementById(answerId).value;
-        if (!answer) { alert('Pehle answer likho!'); return; }
+    function searchGoogle(question) {
+        const query = encodeURIComponent(question + ' interview answer explanation');
+        window.open('https://www.google.com/search?q=' + query, '_blank');
+    }
+
+    function startVoice(textareaId, btnId) {
+        if (!('webkitSpeechRecognition' in window)) {
+            alert('Chrome browser use karo voice ke liye!');
+            return;
+        }
+        const btn = document.getElementById(btnId);
+        if (btn.classList.contains('listening')) {
+            if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
+            btn.textContent = '🎤 Bolo';
+            btn.classList.remove('listening');
+            return;
+        }
+        if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
+        const recognition = new webkitSpeechRecognition();
+        recognition.lang = 'en-IN';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        activeRecognition = recognition;
+        let finalText = document.getElementById(textareaId).value;
+        recognition.onstart = function() {
+            btn.textContent = '🔴 Band karne ke liye click karo';
+            btn.classList.add('listening');
+        };
+        recognition.onresult = function(event) {
+            let interimText = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) { finalText += event.results[i][0].transcript + ' '; }
+                else { interimText += event.results[i][0].transcript; }
+            }
+            document.getElementById(textareaId).value = finalText + interimText;
+        };
+        recognition.onerror = function(e) { console.log('Voice error:', e.error); };
+        recognition.onend = function() {
+            btn.textContent = '🎤 Bolo';
+            btn.classList.remove('listening');
+            document.getElementById(textareaId).value = finalText;
+            activeRecognition = null;
+        };
+        recognition.start();
+    }
+
+    async function checkAnswer(question, answerId, resultId, evalBtnId, micBtnId) {
+        const answer = document.getElementById(answerId).value.trim();
+        if (!answer) { alert('Pehle answer likho ya bolo!'); return; }
+        const micBtn = document.getElementById(micBtnId);
+        if (micBtn.classList.contains('listening')) {
+            if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
+            micBtn.textContent = '🎤 Bolo';
+            micBtn.classList.remove('listening');
+        }
+        const evalBtn = document.getElementById(evalBtnId);
+        evalBtn.disabled = true;
+        evalBtn.textContent = '⏳ Evaluating...';
         document.getElementById(resultId).style.display = 'block';
-        document.getElementById(resultId).innerHTML = '⏳ Evaluating...';
+        document.getElementById(resultId).innerHTML = '⏳ AI evaluate kar raha hai...';
         try {
             const res = await fetch(`${BASE_URL}/api/answer/evaluate?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`, {
                 method: 'POST',
@@ -82,8 +161,26 @@
             const data = await res.json();
             const text = data.candidates[0].content.parts[0].text;
             document.getElementById(resultId).innerHTML = text.replace(/\n/g, '<br>');
+            evalBtn.textContent = '✅ Evaluated';
+            solvedCount++;
+            document.getElementById('counter').textContent = '✅ ' + solvedCount + ' Solved';
         } catch(e) {
             document.getElementById(resultId).innerHTML = 'Evaluation failed — try again!';
+            evalBtn.disabled = false;
+            evalBtn.textContent = '✓ Evaluate';
+        }
+    }
+
+    async function saveProgress() {
+        if (solvedCount === 0) { alert('Pehle koi question solve karo!'); return; }
+        const res = await fetch(`${BASE_URL}/api/progress/save?topic=${topic}&questionsSolved=${solvedCount}`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+            alert(`Progress saved! ${solvedCount} questions solved! ✅`);
+            solvedCount = 0;
+            document.getElementById('counter').textContent = '✅ 0 Solved';
         }
     }
 

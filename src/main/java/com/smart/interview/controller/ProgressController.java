@@ -3,7 +3,9 @@ package com.smart.interview.controller;
 import java.util.List;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -47,5 +49,9 @@ public class ProgressController {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found!"));
         return progressRepository.findByUser(user);
+    }
+    @DeleteMapping("/delete/{id}")
+    public void deleteProgress(@PathVariable Long id) {
+        progressRepository.deleteById(id);
     }
 }

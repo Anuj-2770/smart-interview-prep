@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress - Smart Interview Prep</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+        .navbar { background: #4CAF50; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h1 { color: white; font-size: 20px; }
+        .navbar button { background: white; color: #4CAF50; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        h2 { color: #333; margin-bottom: 1.5rem; }
+        .progress-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .progress-card h3 { color: #333; }
+        .progress-card p { color: #666; font-size: 13px; margin-top: 4px; }
+        .score { background: #4CAF50; color: white; padding: 8px 16px; border-radius: 5px; font-weight: bold; }
+        .delete-btn { background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 8px; }
+        .empty { text-align: center; padding: 3rem; color: #666; }
+        .total-box { background: white; padding: 1rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .total-box h3 { color: #333; }
+        .total-box span { background: #2196F3; color: white; padding: 8px 16px; border-radius: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>🎯 Smart Interview Prep</h1>
+    <button onclick="window.location.href='dashboard.html'">← Back</button>
+</div>
+
+<div class="container">
+    <h2>My Progress 📊</h2>
+    <div id="total-box"></div>
+    <div id="progress"></div>
+</div>
+
+<script>
+    const BASE_URL = 'http://localhost:8282';
+    const token = localStorage.getItem('token');
+
+    if (!token) window.location.href = 'login.html';
+
+    async function loadProgress() {
+        const res = await fetch(`${BASE_URL}/api/progress/my`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        const container = document.getElementById('progress');
+        const totalBox = document.getElementById('total-box');
+        container.innerHTML = '';
+
+        if (data.length === 0) {
+            totalBox.innerHTML = '';
+            container.innerHTML = '<div class="empty"><h3>Abhi koi progress nahi hai!</h3><p>Topics practice karo — yahan dikhega!</p></div>';
+            return;
+        }
+
+        // Total questions count
+        let total = 0;
+        data.forEach(item => total += item.questionsSolved);
+        totalBox.innerHTML = `
+            <div class="total-box">
+                <h3>Total Questions Solved 🎯</h3>
+                <span>${total} Questions</span>
+            </div>`;
+
+        data.forEach(item => {
+            const date = new Date(item.date).toLocaleDateString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            container.innerHTML += `
+                <div class="progress-card" id="card-${item.id}">
+                    <div>
+                        <h3>${item.topic}</h3>
+                        <p>📅 ${date}</p>
+                    </div>
+                    <div style="display:flex;align-items:center;">
+                        <div class="score">${item.questionsSolved} Questions</div>
+                        <button class="delete-btn" onclick="deleteProgress(${item.id})">🗑️ Delete</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    async function deleteProgress(id) {
+        if (!confirm('Delete karna chahte ho?')) return;
+        const res = await fetch(`${BASE_URL}/api/progress/delete/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+            document.getElementById('card-' + id).remove();
+            alert('Deleted! ✅');
+            loadProgress();
+        } else {
+            alert('Delete failed — try again!');
+        }
+    }
+
+    loadProgress();
+</script>
+</body>
+</html>
