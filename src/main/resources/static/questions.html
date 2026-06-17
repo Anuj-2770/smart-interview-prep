@@ -48,7 +48,7 @@
 </div>
 
 <script>
-    const BASE_URL = 'http://localhost:8282';
+    const BASE_URL = 'https://smart-interview-prep-li9z.onrender.com';
     const token = localStorage.getItem('token');
     const topic = localStorage.getItem('selectedTopic');
     let solvedCount = 0;
@@ -79,7 +79,7 @@
                             <textarea id="ans-${i}" rows="3" placeholder="Apna answer likho ya mic se bolo..."></textarea>
                             <div class="btn-row" style="margin-top:8px">
                                 <button class="btn-voice" id="mic-${i}" onclick="startVoice('ans-${i}', 'mic-${i}')">🎤 Bolo</button>
-                                <button class="btn-clear" onclick="document.getElementById('ans-${i}').value=''">🗑️ Clear</button>
+                                <button class="btn-clear" onclick="document.getElementById('ans-${i}').value=''; document.getElementById('eval-${i}').disabled=false; document.getElementById('eval-${i}').textContent='✓ Evaluate'; document.getElementById('res-${i}').style.display='none';">🗑️ Clear</button>
                                 <button class="btn-eval" id="eval-${i}" onclick="checkAnswer('${line.replace(/'/g, "\\'")}', 'ans-${i}', 'res-${i}', 'eval-${i}', 'mic-${i}')">✓ Evaluate</button>
                             </div>
                             <div class="eval-result" id="res-${i}"></div>
