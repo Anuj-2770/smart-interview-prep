@@ -4,6 +4,7 @@ COPY .mvn/ .mvn
 COPY mvnw pom.xml ./
 RUN ./mvnw dependency:go-offline -B
 COPY src ./src
+RUN chmod +x mvnw
 RUN ./mvnw clean package -DskipTests
 EXPOSE 8282
 CMD ["java", "-jar", "target/smart-interview-pre-platform-0.0.1-SNAPSHOT.jar"]
